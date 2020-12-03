@@ -33,29 +33,35 @@ class Main(KytosNApp):
         Users shouldn't call this method directly.
         """
 
-    @listen_to('kytos/core.switch.new')
+    @listen_to('kytos/topology.switch.enabled')
     def install_table_miss_flow(self, event):
         """Install the TableMiss Flow in OF1.3 switches.
 
         This is needed because those drop packets by default.
         """
-        if event.content['switch'].ofp_version == '0x04':
-            flow_mod = FlowMod13()
-            flow_mod.command = FlowModCommand.OFPFC_ADD
+        dpid = event.content['dpid']
+        switch = self.controller.get_switch_by_dpid(dpid)
 
-            action = Output13(port=Port13.OFPP_CONTROLLER)
+        try:
+            version = switch.connection.protocol.version
+        except AttributeError:
+            version = None
+            log.debug(f'The OpenFlow version was not found for switch {dpid}.')
 
-            instruction = InstructionApplyAction()
-            instruction.actions.append(action)
+        if version != 0x04:
+            return
 
-            flow_mod.instructions.append(instruction)
+        flow = {}
+        flow['priority'] = 0
+        flow['table_id'] = settings.TABLE_ID
+        flow['actions'] = [{'action_type': 'output',
+                            'port': Port13.OFPP_CONTROLLER}]
 
-            destination = event.content['switch'].connection
-            event_out = KytosEvent(name=('kytos/of_l2ls.messages.out.'
-                                         'ofpt_flow_mod'),
-                                   content={'destination': destination,
-                                            'message': flow_mod})
-            self.controller.buffers.msg_out.put(event_out)
+        destination = switch.id
+        endpoint = f'{settings.FLOW_MANAGER_URL}/flows/{destination}'
+        data = {'flows': [flow]}
+
+        requests.post(endpoint, json=data)
 
     @staticmethod
     def _create_flow(packet, port):
