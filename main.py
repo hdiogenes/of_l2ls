@@ -1,6 +1,5 @@
 """NApp that solve the L2 Learning Switch algorithm."""
 import requests
-
 from kytos.core import KytosEvent, KytosNApp, log
 from kytos.core.helpers import listen_to
 from pyof.foundation.network_types import Ethernet

@@ -13,6 +13,7 @@ class TestMain(TestCase):
     def setUp(self):
         """Execute steps before each tests."""
         patch('kytos.core.helpers.run_on_thread', lambda x: x).start()
+        # pylint: disable=import-outside-toplevel
         from napps.kytos.of_l2ls.main import Main
         self.addCleanup(patch.stopall)
 
